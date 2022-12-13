@@ -1,0 +1,8 @@
+
+# ignore compilation related files
+*.o
+*.crf
+*.d
+
+# folder where all compilation related fiels end up
+MDK-ARM/project_anemometer/
