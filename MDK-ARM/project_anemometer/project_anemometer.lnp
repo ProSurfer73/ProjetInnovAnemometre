@@ -1,0 +1,27 @@
+--cpu=Cortex-M4.fp
+"project_anemometer\startup_stm32f446xx.o"
+"project_anemometer\main.o"
+"project_anemometer\stm32f4xx_it.o"
+"project_anemometer\stm32f4xx_hal_msp.o"
+"project_anemometer\stm32f4xx_hal_adc.o"
+"project_anemometer\stm32f4xx_hal_adc_ex.o"
+"project_anemometer\stm32f4xx_hal_spi.o"
+"project_anemometer\stm32f4xx_hal_tim.o"
+"project_anemometer\stm32f4xx_hal_tim_ex.o"
+"project_anemometer\stm32f4xx_hal_rcc.o"
+"project_anemometer\stm32f4xx_hal_rcc_ex.o"
+"project_anemometer\stm32f4xx_hal_flash.o"
+"project_anemometer\stm32f4xx_hal_flash_ex.o"
+"project_anemometer\stm32f4xx_hal_flash_ramfunc.o"
+"project_anemometer\stm32f4xx_hal_gpio.o"
+"project_anemometer\stm32f4xx_hal_dma_ex.o"
+"project_anemometer\stm32f4xx_hal_dma.o"
+"project_anemometer\stm32f4xx_hal_pwr.o"
+"project_anemometer\stm32f4xx_hal_pwr_ex.o"
+"project_anemometer\stm32f4xx_hal_cortex.o"
+"project_anemometer\stm32f4xx_hal.o"
+"project_anemometer\system_stm32f4xx.o"
+--library_type=microlib --strict --scatter "project_anemometer\project_anemometer.sct"
+--summary_stderr --info summarysizes --map --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "project_anemometer.map" -o project_anemometer\project_anemometer.axf
