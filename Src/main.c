@@ -41,48 +41,41 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
-
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
 SPI_HandleTypeDef hspi1;
 
-/* USER CODE BEGIN PV */
-
-/* USER CODE END PV */
+/* Commandes de l'afficheur 7segs---------------------------------------------*/
+const uint8_t CMD_CLEAR = 0x76; // commande pour effacer l'afficheur 7seg
+const uint8_t CMD_DECIMAL = 0x77; // commande pour afichher les décimales (les virgules)
+const uint8_t CMD_DECIMAL_ZERO = 0x08; // commande pour afficher aucun  après la virgule
+const uint8_t CMD_DECIMAL_ONE = 0x04; // commande pour afficher un chiffre après la virgule
+const uint8_t CMD_DECIMAL_TWO = 0x02; // commande pour afficher deux chiffres après la virgule
+const uint8_t CMD_DECIMAL_THREE = 0x00; // commande pour afficher trois chiffres après la virgule
+const uint8_t CMD_BRIGHTNESS = 0x7A; // commande pour régler la luminosité de l'afficheur 7seg
+const uint8_t CMD_MOVE_CURSOR = 0x79; // commande pour déplacer le cursor de l'afficheur 7seg
+const uint8_t CMD_CURSOR1 = 0x00; // commande pour placer le cursor sur le digit 1 de l'afficheur 7seg
+const uint8_t CMD_CURSOR2 = 0x01; // commande pour placer le cursor sur le digit 2 de l'afficheur 7seg
+const uint8_t CMD_CURSOR3 = 0x02; // commande pour placer le cursor sur le digit 3 de l'afficheur 7seg
+const uint8_t CMD_CURSOR4 = 0x03; // commande pour placer le cursor sur le digit 4 de l'afficheur 7seg
+const uint8_t CMD_DIGIT1 = 0x7B; 
+const uint8_t CMD_DIGIT2 = 0x7C;
+const uint8_t CMD_DIGIT3 = 0x7D;
+const uint8_t CMD_DIGIT4 = 0x7E;
+const uint8_t CMD_BAUDRATE = 0x7F;
+const uint8_t CMD_FACTORY_RESET = 0x81;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_ADC1_Init(void);
-/* USER CODE BEGIN PFP */
-
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
+void ClearDisplay(void);
+void SetDigit(uint8_t iValue, int iDigitNb);
+void SetDecimal(int iDecimalNb);
+void SetDisplay(unsigned number);
+void SetDisplayFloat(float decimalNumber);
 
 /**
   * @brief  The application entry point.
@@ -90,41 +83,41 @@ static void MX_ADC1_Init(void);
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
 
   /* Configure the system clock */
   SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_SPI1_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-
+	
+	ClearDisplay();
+	
+	SetDisplayFloat(000.0);
+	SetDecimal(1);
+	SetDecimal(0);
+	int i=0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
+		SetDisplay(i);
+		i++;
+		if(i==9999){
+			i=0;
+		}
+		HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }
@@ -306,5 +299,88 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
+/**
+  * @brief  cette fonction permet de netoyer l'afficheur 7seg
+  * @retval None
+  */
+void ClearDisplay(void)
+{
+	HAL_SPI_Transmit(&hspi1, (uint8_t *)&CMD_CLEAR, 1, 100);
+}
+
+/**
+  * @brief  cette fonction permet d'afficher un chiffre sur un digit
+	* @param  iValue: valeur à afficher 
+	* @param  iDigitNb: numéro du digit
+  * @retval None
+  */
+void SetDigit(uint8_t iValue, int iDigitNb)
+{
+	HAL_SPI_Transmit(&hspi1, (uint8_t *)&CMD_MOVE_CURSOR, 1, 100);
+	switch(iDigitNb)
+	{
+		case 1 : HAL_SPI_Transmit(&hspi1, (uint8_t *)&CMD_CURSOR1, 1, 100);
+			break;
+		case 2 : HAL_SPI_Transmit(&hspi1, (uint8_t *)&CMD_CURSOR2, 1, 100);
+			break;
+		case 3 : HAL_SPI_Transmit(&hspi1, (uint8_t *)&CMD_CURSOR3, 1, 100);
+			break;
+		case 4 : HAL_SPI_Transmit(&hspi1, (uint8_t *)&CMD_CURSOR4, 1, 100);
+			break;
+	}
+	HAL_SPI_Transmit(&hspi1, (uint8_t *)&iValue, 1, 100);
+}
+
+/**
+  * @brief  cette fonction permet d'afficher les virgule e fonction du nombre de décimales souhaitée
+	* @param  iDecimalNb: nombre de décimales
+  * @retval None
+  */
+void SetDecimal(int iDecimalNb)
+{
+	HAL_SPI_Transmit(&hspi1, (uint8_t *)&CMD_DECIMAL, 1, 100);
+	switch(iDecimalNb)
+	{
+		case 0 : HAL_SPI_Transmit(&hspi1, (uint8_t *)&CMD_DECIMAL_ZERO, 1, 100);
+			break;
+		case 1 : HAL_SPI_Transmit(&hspi1, (uint8_t *)&CMD_DECIMAL_ONE, 1, 100);
+			break;
+		case 2 : HAL_SPI_Transmit(&hspi1, (uint8_t *)&CMD_DECIMAL_TWO, 1, 100);
+			break;
+		case 3 : HAL_SPI_Transmit(&hspi1, (uint8_t *)&CMD_DECIMAL_THREE, 1, 100);
+			break;
+	}
+	
+
+}
+
+/**
+  * @brief  cette fonction permet d'afficher un float (avec une décimale) sur l'afficheur
+	* @param  fdecimalNumber: float valeur à afficher
+  * @retval None
+  */
+void SetDisplayFloat(float fdecimalNumber)
+{
+		SetDisplay(fdecimalNumber*10);
+}
+
+
+/**
+  * @brief  cette fonction permet d'afficher un entier sur l'afficheur
+	* @param  number: valeur à afficher
+  * @retval None
+  */
+void SetDisplay(unsigned number)
+{
+		unsigned i=4;
+	
+		while(i > 0)
+		{
+				SetDigit(number%10, i--);
+				number /= 10;
+		}
+}
+
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
