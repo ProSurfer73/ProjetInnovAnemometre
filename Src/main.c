@@ -104,20 +104,29 @@ int main(void)
 	
 	SetDisplayFloat(000.0);
 	SetDecimal(1);
-	SetDecimal(0);
+	//SetDecimal(0);
 	int i=0;
+	volatile uint16_t raw;
+	volatile float voltage;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		SetDisplay(i);
-		i++;
-		if(i==9999){
-			i=0;
-		}
-		HAL_Delay(1000);
+		HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, 10);
+    raw = HAL_ADC_GetValue(&hadc1);
+		voltage = ((float)raw * 3.3)/(float)4095;
+		HAL_Delay(1);
+		SetDisplayFloat(voltage);
+		
+//		SetDisplay(i);
+//		i++;
+//		if(i==9999){
+//			i=0;
+//		}
+//		HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }
