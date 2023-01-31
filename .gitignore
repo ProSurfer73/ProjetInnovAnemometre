@@ -1,0 +1,6 @@
+
+# ignore compilation related files
+*.o
+*.crf
+*.d
+
