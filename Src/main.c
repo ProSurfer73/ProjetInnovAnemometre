@@ -43,8 +43,11 @@
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
+ADC_HandleTypeDef hadc2;
 
 SPI_HandleTypeDef hspi1;
+
+TIM_HandleTypeDef htim1;
 
 /* Commandes de l'afficheur 7segs---------------------------------------------*/
 const uint8_t CMD_CLEAR = 0x76; // commande pour effacer l'afficheur 7seg
@@ -71,39 +74,16 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_TIM1_Init(void);
+static void MX_ADC2_Init(void);
 void ClearDisplay(void);
 void SetDigit(uint8_t iValue, int iDigitNb);
 void SetDecimal(int iDecimalNb);
 void SetDisplay(unsigned number);
 void SetDisplayFloat(float decimalNumber);
-
-float getVitesse(float tension)
-{
-	float inter = tension-0.575;
-	if(inter < 0)
-		inter = 0;
-	return (inter)*126.3;
-}
-
-float getTension()
-{
-	float fAverage = 0, voltage = 0;
-	uint16_t raw = 0;
-	HAL_ADC_Start(&hadc1);
-  HAL_ADC_PollForConversion(&hadc1, 10);
-	
-	for(int i=0 ; i<100; i++) {
-		raw = HAL_ADC_GetValue(&hadc1);
-		voltage = ((float)raw * (3.3))/(float)4095;
-		fAverage = fAverage + voltage;
-		HAL_Delay(2);
-	}
-	fAverage = fAverage/100;
-	
-	return fAverage;
-}
-
-
+float getTension();
+float getVitesse(float tension);
+int getPWM();
 
 /**
   * @brief  The application entry point.
@@ -111,45 +91,45 @@ float getTension()
   */
 int main(void)
 {
-
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
-
   /* Configure the system clock */
   SystemClock_Config();
-
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_SPI1_Init();
   MX_ADC1_Init();
+  MX_TIM1_Init();
+  MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
 	
+	//on initialise l'affichage à 00.00 ( les quatres digits à 0 et l'affiche d'un point pour avoir deux décimals)
 	ClearDisplay();
-	
-	SetDisplayFloat(000.0);
+	SetDisplayFloat(00.00);
 	SetDecimal(2);
 	
-	volatile uint16_t raw;
-	volatile float voltage=0;
-	volatile float fAverage=0;
+	//Start du signal pwm
+		HAL_TIM_PWM_Start( &htim1,TIM_CHANNEL_1 );
+		
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		SetDisplayFloat(getVitesse(getTension()));
+		//Réglage du signalpwm;
 		
-//		SetDisplay(i);
-//		i++;
-//		if(i==9999){
-//			i=0;
-//		}
-//		HAL_Delay(1000);
+		__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1,getPWM());
+		
+    //SetDisplayFloat() : affichage de la vitesse sur l'afficheu 7 segments
+		//getTension() : permet de récupérer la tension en sortit du circuit électronique
+		//getVitesse() : converti la tension en vitesse 
+		SetDisplayFloat(getVitesse(getTension()));
+
   }
   /* USER CODE END 3 */
 }
@@ -174,9 +154,9 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 16;
-  RCC_OscInitStruct.PLL.PLLN = 336;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLM = 8;
+  RCC_OscInitStruct.PLL.PLLN = 80;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 2;
   RCC_OscInitStruct.PLL.PLLR = 2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
@@ -249,6 +229,56 @@ static void MX_ADC1_Init(void)
 }
 
 /**
+  * @brief ADC2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC2_Init(void)
+{
+
+  /* USER CODE BEGIN ADC2_Init 0 */
+
+  /* USER CODE END ADC2_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC2_Init 1 */
+
+  /* USER CODE END ADC2_Init 1 */
+  /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
+  */
+  hadc2.Instance = ADC2;
+  hadc2.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc2.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc2.Init.ScanConvMode = DISABLE;
+  hadc2.Init.ContinuousConvMode = DISABLE;
+  hadc2.Init.DiscontinuousConvMode = DISABLE;
+  hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc2.Init.NbrOfConversion = 1;
+  hadc2.Init.DMAContinuousRequests = DISABLE;
+  hadc2.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time. 
+  */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC2_Init 2 */
+
+  /* USER CODE END ADC2_Init 2 */
+
+}
+
+/**
   * @brief SPI1 Initialization Function
   * @param None
   * @retval None
@@ -283,6 +313,80 @@ static void MX_SPI1_Init(void)
   /* USER CODE BEGIN SPI1_Init 2 */
 
   /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 83;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 99;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+  HAL_TIM_MspPostInit(&htim1);
 
 }
 
@@ -332,8 +436,11 @@ void assert_failed(uint8_t *file, uint32_t line)
 }
 #endif /* USE_FULL_ASSERT */
 
+/************************************Fonctions pour l'afficheur 7 segments ********************************************************/
+
+
 /**
-  * @brief  cette fonction permet de netoyer l'afficheur 7seg
+  * @brief  cette fonction permet d'afficher de ne rien afficher sur l'afficheur 7 segments
   * @retval None
   */
 void ClearDisplay(void)
@@ -365,7 +472,7 @@ void SetDigit(uint8_t iValue, int iDigitNb)
 }
 
 /**
-  * @brief  cette fonction permet d'afficher les virgule e fonction du nombre de décimales souhaitée
+  * @brief  cette fonction permet d'afficher les virgules fonction du nombre de décimales souhaitée
 	* @param  iDecimalNb: nombre de décimales
   * @retval None
   */
@@ -400,7 +507,7 @@ void SetDisplayFloat(float fdecimalNumber)
 
 /**
   * @brief  cette fonction permet d'afficher un entier sur l'afficheur
-	* @param  number: valeur à afficher
+	* @param  number: valeur à afficher (cela doit etre un nombre compris entre 0 et 9999)
   * @retval None
   */
 void SetDisplay(unsigned number)
@@ -415,4 +522,64 @@ void SetDisplay(unsigned number)
 }
 
 
+/*******************************************Fonction pour le capteur de pression***************************************/
+/**
+  * @brief  cette fonction permet de récupérer la tension sur la broche PA0
+* @retval float : valeur de la tension
+  */
+float getTension()
+{
+	volatile float fAverage = 0, voltage = 0;
+	volatile uint16_t raw = 0;
+	
+	//start de l'ADC1
+	HAL_ADC_Start(&hadc1);
+  HAL_ADC_PollForConversion(&hadc1, 10);
+	
+	//on récupère la valeur 100 fois et on fait une moyenne pour être plus précis
+	for(int i=0 ; i<100; i++) {
+		raw = HAL_ADC_GetValue(&hadc1);
+		voltage = ((float)raw * (3.3))/(float)4095;
+		fAverage = fAverage + voltage;
+		HAL_Delay(2);
+	}
+	fAverage = fAverage/100;
+	
+	return fAverage;
+}
+
+
+/**
+  * @brief  cette fonction permet de convertir une tension en vitesse
+	* @param  number: tension à convertir 
+* @retval float : vitesse retourné
+  */
+float getVitesse(float tension)
+{
+	float inter = tension-0.550;
+	if(inter < 0)
+		inter = 0;
+	return (inter)*126.3;
+}
+
+/****************************************************Fonction pour le signal PWM **********************************************************/
+/**
+  * @brief  cette fonction permet de récupérer le réglage du pwm voulu
+* @retval int : valeur entre 0 et 100
+  */
+int getPWM()
+{
+  volatile int Pwmvalue;
+	volatile float value;
+  volatile uint16_t raw = 0;
+	
+	//start de l'ADC2
+	HAL_ADC_Start(&hadc2);
+  HAL_ADC_PollForConversion(&hadc2, 10);
+	
+	raw = HAL_ADC_GetValue(&hadc2);
+	value = ((float)raw / (float)4095)*(float)100;
+	Pwmvalue = (int)value;
+	return Pwmvalue;
+}
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
